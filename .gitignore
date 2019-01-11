@@ -9,6 +9,8 @@ tags
 
 data/
 checkpoint
+checkpoints/
+*.vscode
 
 # luarocks build files
 *.src.rock

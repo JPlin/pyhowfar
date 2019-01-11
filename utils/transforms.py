@@ -1,13 +1,15 @@
 from __future__ import absolute_import
 
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.misc
-import matplotlib.pyplot as plt
 import torch
+from skimage import transform as T
 
-from .misc import *
 from .imutils import *
+from .misc import *
 
 
 def color_normalize(x, mean, std):
@@ -15,7 +17,15 @@ def color_normalize(x, mean, std):
         x = x.repeat(3, x.size(1), x.size(2))
 
     for t, m, s in zip(x, mean, std):
-        t.sub_(m)
+        t.sub_(m).div_(s)
+    return x
+
+def color_denormalize(x, mean, std):
+    if x.size(0) == 1:
+        x = x.repeat(3, x.size(1), x.size(2))
+
+    for t, m, s in zip(x, mean, std):
+        t.mul_(s).add_(m)
     return x
 
 
@@ -25,6 +35,8 @@ def flip_back(flip_output, dataset='mpii'):
     """
     if dataset == 'mpii':
         matchedParts = ([0, 5], [1, 4], [2, 3], [10, 15], [11, 14], [12, 13])
+    elif dataset == 'cari_align':
+        matchedParts = ([27 , 29],[0 , 5] , [1 , 4] , [2 , 3] , [7 , 12], [6 , 13], [10 ,15] , [16 , 17] , [9 , 14] , [8 ,11] , [18 , 19] , [20 , 22] , [23 , 25] , [62 , 30] , [61 , 31] , [60 , 32], [59 , 33], [58 , 34], [57 , 35], [56 , 36], [55 , 37] , [54 , 38], [53, 39] , [52 , 40] , [51 , 41] , [50 , 42], [49 , 43] , [48 , 44] , [47 , 45])
     else:
         print('Not supported dataset: ' + dataset)
 
@@ -51,6 +63,8 @@ def shufflelr(x, width, dataset='mpii'):
                         [17, 26], [18, 25], [19, 26], [20, 23], [21, 22], [36, 45], [37, 44],
                         [38, 43], [39, 42], [41, 46], [40, 47], [31, 35], [32, 34], [50, 52],
                         [49, 53], [48, 54], [61, 63], [62, 64], [67, 65], [59, 55], [58, 56])
+    elif dataset == 'cari_align':
+        matchedParts = ([27 , 29],[0 , 5] , [1 , 4] , [2 , 3] , [7 , 12], [6 , 13], [10 ,15] , [16 , 17] , [9 , 14] , [8 ,11] , [18 , 19] , [20 , 22] , [23 , 25] , [62 , 30] , [61 , 31] , [60 , 32], [59 , 33], [58 , 34], [57 , 35], [56 , 36], [55 , 37] , [54 , 38], [53, 39] , [52 , 40] , [51 , 41] , [50 , 42], [49 , 43] , [48 , 44] , [47 , 45])
     else:
         print('Not supported dataset: ' + dataset)
 
@@ -116,6 +130,14 @@ def transform(pt, center, scale, res, invert=0, rot=0):
     new_pt = np.dot(t, new_pt)
     return new_pt[:2].astype(int) + 1
 
+def sk_transform(pt, center, scale, res, invert=0, rot=0):
+    rot = rot * np.pi / 180
+    x0, y0 = res[0] / 2, res[0] / 2
+    ret_pt = np.zeros_like(pt)
+    ret_pt[0] = ((pt[0] - x0) * np.cos(rot)) - ((pt[1] - y0) * np.sin(rot)) + x0
+    ret_pt[1] = ((pt[0] - x0) * np.sin(rot)) + ((pt[1] - y0) * np.cos(rot)) + y0
+    return ret_pt
+
 
 def transform_preds(coords, center, scale, res):
     # size = coords.size()
@@ -147,9 +169,11 @@ def crop(img, center, scale, res, rot=0):
             scale = scale / sf
 
     # Upper left point
-    ul = np.array(transform([0, 0], center, scale, res, invert=1))
+    # ul = np.array(transform([0, 0], center, scale, res, invert=1))
     # Bottom right point
-    br = np.array(transform(res, center, scale, res, invert=1))
+    # br = np.array(transform(res, center, scale, res, invert=1))
+    ul = np.array([0, 0])
+    br = np.array([255, 255])
 
     # Padding so that when rotated proper amount of context is included
     pad = int(np.linalg.norm(br - ul) / 2 - float(br[1] - ul[1]) / 2)
