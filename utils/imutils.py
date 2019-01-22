@@ -208,7 +208,6 @@ def get_preds_fromhm(hm):
     max, idx = torch.max(
         hm.view(hm.size(0), hm.size(1),
                 hm.size(2) * hm.size(3)), 2)
-    print('idx:', idx)
     idx += 1
     preds = idx.view(idx.size(0), idx.size(1), 1).repeat(1, 1, 2).float()
     preds[..., 0].apply_(lambda x: (x - 1) % hm.size(3) + 1)

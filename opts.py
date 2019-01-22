@@ -9,14 +9,17 @@ def argparser():
         '--data', type=str, default='data/CARI', help='path to dataset')
     P.add_argument('--seed', type=int, default=0, help='maunlly set RNG seed')
     P.add_argument(
-        '--nGpu', type=int, default=1, help='number of gpu(s) to use')
+        '--nGpu', type=int, default=2, help='number of gpu(s) to use')
     P.add_argument(
         '--snapshot',
         type=int,
         default=3,
         help='save a snapshot every n epoch(s)')
     P.add_argument(
-        '--epochs', type=int, default=50, help='Number of total epochs to run')
+        '--epochs',
+        type=int,
+        default=100,
+        help='Number of total epochs to run')
     P.add_argument(
         '--workers', type=int, default=4, help='number of data loader threads')
     # for a single GPU.
@@ -38,7 +41,7 @@ def argparser():
         '--lr', type=float, default=1e-3, help='initial learning rate')
     P.add_argument('--momentum', type=float, default=0.0, help='momentum')
     P.add_argument(
-        '--weight-decay', type=float, default=0.0, help='weight decay')
+        '--weight-decay', type=float, default=0, help='weight decay')
     P.add_argument('--netType', type=str, default='FAN', help='options: fan')
     P.add_argument(
         '--pointType',
@@ -63,7 +66,7 @@ def argparser():
         '--schedule',
         type=int,
         nargs="+",
-        default=[15, 30, 40],
+        default=[20, 35, 70],
         help='adjust lr at this epoch')
     P.add_argument('--gamma', type=float, default=0.1, help='lr decay')
     P.add_argument(
@@ -86,7 +89,7 @@ def argparser():
     P.add_argument(
         '--rot-factor',
         type=float,
-        default=20,
+        default=10,
         help='rotation factor(in degrees)')
     P.add_argument(
         '-e',

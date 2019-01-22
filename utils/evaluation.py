@@ -7,6 +7,7 @@ from random import randint
 
 from .misc import *
 from .transforms import transform, transform_preds
+from .imutils import *
 
 __all__ = ['accuracy', 'AverageMeter']
 
@@ -105,8 +106,10 @@ def accuracy(output, target, idxs, thr=0.08):
     First value to be returned is accuracy calculated based on overall 'idxs'
     followed by individual accuracies
     '''
-    preds = get_preds(output)
-    gts = get_preds(target)
+    # preds = get_preds(output)
+    # gts = get_preds(target)
+    preds = get_preds_fromhm(output)
+    gts = get_preds_fromhm(target)
     # B * 2
     norm = torch.ones(preds.size(0))
     for i, gt in enumerate(gts):

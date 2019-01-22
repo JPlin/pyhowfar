@@ -32,3 +32,7 @@ def read_txt(file_path):
         for line in flines:
             lines.append([float(x) for x in line.strip().split(' ')])
     return np.array(lines)
+
+
+def read_npy(file_path):
+    return np.load(file_path)
