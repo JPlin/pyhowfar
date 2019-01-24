@@ -2,6 +2,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import math
+from torch.utils.model_zoo import load_url
+
+model_urls = {
+    '2DFAN-4':
+    'https://www.adrianbulat.com/downloads/python-fan/2DFAN4-11f355bf06.pth.tar',
+    '3DFAN-4':
+    'https://www.adrianbulat.com/downloads/python-fan/3DFAN4-7835d9f11d.pth.tar',
+    'depth':
+    'https://www.adrianbulat.com/downloads/python-fan/depth-2a464da4ea.pth.tar',
+}
 
 
 def conv3x3(in_planes, out_planes, strd=1, padding=1, bias=False):
@@ -287,3 +297,14 @@ class ResNetDepth(nn.Module):
         x = self.fc(x)
 
         return x
+
+
+def FAN_weights(model):
+    # load weights if name and size are fit else use original weights
+    loaded_weights = load_url(
+        model_urls['2DFAN-4'], map_location=lambda storage, loc: storage)
+    for name, param in model.named_parameters():
+        if name not in loaded_weights or loaded_weights[name].size(
+        ) != param.size():
+            loaded_weights[name] = param
+    return loaded_weights

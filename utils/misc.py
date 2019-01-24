@@ -65,3 +65,16 @@ def adjust_learning_rate(optimizer, epoch, lr, schedule, gamma):
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr
     return lr
+
+
+def adjust_map_weight(epoch, map_weight, schedule, gamma=0.5, init=4.):
+    if epoch == 0:
+        weight = init
+        map_weight[27], map_weight[28], map_weight[29] = weight, weight, weight
+    else:
+        weight = map_weight[27]
+
+    if epoch in schedule:
+        weight *= gamma
+        map_weight[27], map_weight[28], map_weight[29] = weight, weight, weight
+    return map_weight

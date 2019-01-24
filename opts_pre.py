@@ -6,7 +6,7 @@ import os
 def argparser():
     P = argparse.ArgumentParser(description='Train network script')
     P.add_argument(
-        '--data', type=str, default='data/CARI', help='path to dataset')
+        '--data', type=str, default='data/WFLW', help='path to dataset')
     P.add_argument('--seed', type=int, default=0, help='maunlly set RNG seed')
     P.add_argument(
         '--nGpu', type=int, default=2, help='number of gpu(s) to use')
@@ -24,7 +24,7 @@ def argparser():
         '--workers', type=int, default=4, help='number of data loader threads')
     # for a single GPU.
     P.add_argument(
-        '--train-batch', type=int, default=32, help='minibatch size')
+        '--train-batch', type=int, default=30, help='minibatch size')
     P.add_argument('--val-batch', type=int, default=10, help='minibatch size')
     P.add_argument(
         '-c',
@@ -38,7 +38,7 @@ def argparser():
         default='',
         help='resume from lasteset saved checkpoints')
     P.add_argument(
-        '--lr', type=float, default=2.5e-3, help='initial learning rate')
+        '--lr', type=float, default=1e-3, help='initial learning rate')
     P.add_argument('--momentum', type=float, default=0.0, help='momentum')
     P.add_argument(
         '--weight-decay', type=float, default=0, help='weight decay')
@@ -52,7 +52,7 @@ def argparser():
     P.add_argument(
         '--pointNumber',
         type=int,
-        default=63,
+        default=98,
         choices=[63, 68, 98],
         help='point number of image landmarks')
     P.add_argument(
@@ -68,12 +68,6 @@ def argparser():
         nargs="+",
         default=[20, 35, 70],
         help='adjust lr at this epoch')
-    P.add_argument(
-        '--weight_schedule',
-        type=int,
-        nargs="+",
-        default=[10, 30],
-        help='adjust map weight for mse loss')
     P.add_argument('--gamma', type=float, default=0.1, help='lr decay')
     P.add_argument(
         '--nFeats',
@@ -95,7 +89,7 @@ def argparser():
     P.add_argument(
         '--rot-factor',
         type=float,
-        default=20,
+        default=10,
         help='rotation factor(in degrees)')
     P.add_argument(
         '-e',

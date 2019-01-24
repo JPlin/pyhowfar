@@ -19,7 +19,7 @@ class WFLW(data.Dataset):
     def __init__(self,
                  args,
                  split,
-                 img_folder='/mnt/d1p8/ming/FaceData/WFLW_align',
+                 img_folder='/mnt/d1p8/ming/FaceData/WFLW/WFLW_align',
                  resize_size=256):
         self.nParts = 98
         self.pointType = args.pointType
@@ -73,11 +73,11 @@ class WFLW(data.Dataset):
         sf = self.scale_factor
         rf = self.rot_factor
 
-        pts = read_txt(
+        pts = read_npy(
             os.path.join(
                 self.img_folder, self.anno[idx].replace('.jpg',
-                                                        '.txt').replace(
-                                                            '.png', '.txt')))
+                                                        '.npy').replace(
+                                                            '.png', '.npy')))
         c = torch.Tensor((256 / 2, 256 / 2))
         s = 1.0
 
@@ -85,7 +85,7 @@ class WFLW(data.Dataset):
 
         # rescale image
         img = resize(img, self.resize_size, self.resize_size)
-        pts = torch.Tensor(pts) * (256. / 304.)
+        pts = torch.Tensor(pts)
 
         r = 0
         if self.is_train:
@@ -94,7 +94,7 @@ class WFLW(data.Dataset):
                 -2 * rf, 2 * rf)[0] if random.random() <= 0.6 else 0
             if random.random() <= 0.5:
                 img = torch.from_numpy(fliplr(img.numpy())).float()
-                pts = shufflelr(pts, width=img.size(2), dataset='cari_align')
+                pts = shufflelr(pts, width=img.size(2), dataset='WFLW')
                 c[0] = img.size(2) - c[0]
 
             # add random color disturb
@@ -107,7 +107,7 @@ class WFLW(data.Dataset):
         inp = color_normalize(inp, self.mean, self.std)
 
         tpts = pts.clone()
-        out = torch.zeros(self.nParts, 64, 64)
+        out = torch.zeros(self.nParts, 98, 98)
         for i in range(self.nParts):
             if tpts[i, 0] > 0:
                 if r != 0:
@@ -129,7 +129,7 @@ class WFLW(data.Dataset):
 if __name__ == "__main__":
     import opts, demo
     args = opts.argparser()
-    dataset = CARI_ALIGN(args, 'test')
+    dataset = WFLW(args, 'test')
     crop_win = None
     for i in range(dataset.__len__()):
         input, target, meta = dataset.__getitem__(i)

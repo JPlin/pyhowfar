@@ -12,12 +12,13 @@ from progress.bar import Bar
 
 import models
 import opts
-from datasets import AFLW2000, CARI_ALIGN, LS3DW, VW300, W300LP
+import opts_pre
+from datasets import AFLW2000, CARI_ALIGN, LS3DW, VW300, W300LP, WFLW
 from utils.evaluation import (AverageMeter, accuracy, calc_dists, calc_metrics,
                               final_preds)
 from utils.imutils import batch_with_heatmap
 from utils.logger import Logger, savefig
-from utils.misc import adjust_learning_rate, save_checkpoint, save_pred
+from utils.misc import adjust_learning_rate, save_checkpoint, save_pred, adjust_map_weight
 
 matplotlib.use('Agg')
 
@@ -29,7 +30,7 @@ model_names = sorted(name for name in models.__dict__
 
 best_acc = 0.
 best_auc = 0.
-idx = range(1, 69, 1)
+idx = range(1, args.pointNumber, 1)
 
 
 def get_loader(data):
@@ -38,13 +39,22 @@ def get_loader(data):
         'LS3D-W/300VW-3D': VW300,
         'AFLW2000': AFLW2000,
         'LS3D-W': LS3DW,
-        'CARI': CARI_ALIGN
+        'CARI': CARI_ALIGN,
+        'WFLW': WFLW
     }[data[5:]]
+
+
+def weighted_mse_loss(input, target, weight):
+    weight = weight.unsqueeze(-1).unsqueeze(-1)
+    weight = weight.expand_as(target[0])
+    return torch.mean(weight * (input - target)**2)
 
 
 def main(args):
     global best_acc
     global best_auc
+    global map_weight
+    map_weight = torch.Tensor([0.] * 63).cuda()
 
     print("==> Creating model '{}-{}', stacks={}, blocks={}, feats={}".format(
         args.netType, args.pointType, args.nStacks, args.nModules,
@@ -61,6 +71,7 @@ def main(args):
     #     num_classes=args.pointNumber)
     model = models.__dict__[args.netType](
         num_modules=args.nStacks, pointNumber=args.pointNumber)
+    model.load_state_dict(models.__dict__[args.netType + '_weights'](model))
     model = torch.nn.DataParallel(model).cuda()
 
     criterion = torch.nn.MSELoss(size_average=True).cuda()
@@ -130,7 +141,9 @@ def main(args):
     for epoch in range(args.start_epoch, args.epochs):
         lr = adjust_learning_rate(optimizer, epoch, lr, args.schedule,
                                   args.gamma)
-        print('=> Epoch: %d | LR %.8f' % (epoch + 1, lr))
+        map_weight = adjust_map_weight(epoch, map_weight, args.weight_schedule)
+        print('=> Epoch: %d | LR %.8f | Map_Weight %.8f' % (epoch + 1, lr,
+                                                            map_weight[27]))
 
         train_loss, train_acc = train(train_loader, model, criterion,
                                       optimizer, args.netType, args.debug,
@@ -209,7 +222,8 @@ def train(loader,
         # intermediate supervision
         loss = 0
         for o in output:
-            loss += criterion(o, target_var)
+            # loss += criterion(o, target_var)
+            loss += weighted_mse_loss(o, target_var, map_weight)
         acc, _ = accuracy(score_map, target.cpu(), idx, thr=0.07)
 
         losses.update(loss.data[0], inputs.size(0))

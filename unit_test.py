@@ -10,6 +10,7 @@ from skimage import io
 
 import opts
 from datasets.cari_align import CARI_ALIGN
+from datasets.WFLW import WFLW
 from utils.imutils import *
 from utils.osutils import *
 from utils.transforms import *
@@ -45,6 +46,25 @@ def test_gaussian():
     plt.show()
 
 
+def test_dataset_WFLW():
+    dataset = WFLW(args, 'val')
+    plt.figure()
+    for i in range(dataset.__len__()):
+        input, target, meta = dataset.__getitem__(i)
+        input = color_denormalize(
+            input, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+        # input = input.numpy().transpose(1, 2, 0) * 255.
+        # input = input.astype(np.uint8)
+        pts = meta['pts']
+        show_joints(input, pts, show_N=True)
+        plt.show()
+        preds = get_preds_fromhm(torch.unsqueeze(target, 0))
+        show_joints(input, preds[0] * 4.0, show_N=True)
+        plt.show()
+        print(pts - preds[0] * 4.0)
+
+
 if __name__ == '__main__':
     # test_dataset()
-    test_gaussian()
+    # test_gaussian()
+    test_dataset_WFLW()
