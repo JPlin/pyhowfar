@@ -9,10 +9,10 @@ import torch.nn.parallel
 import torch.optim
 import torchvision.datasets as datasets
 from progress.bar import Bar
+import copy
 
 import models
 import opts
-import opts_pre
 from datasets import AFLW2000, CARI_ALIGN, LS3DW, VW300, W300LP, WFLW
 from utils.evaluation import (AverageMeter, accuracy, calc_dists, calc_metrics,
                               final_preds)
@@ -54,7 +54,7 @@ def main(args):
     global best_acc
     global best_auc
     global map_weight
-    map_weight = torch.Tensor([0.] * 63).cuda()
+    map_weight = torch.Tensor([1.] * 63).cuda()
 
     print("==> Creating model '{}-{}', stacks={}, blocks={}, feats={}".format(
         args.netType, args.pointType, args.nStacks, args.nModules,
@@ -71,11 +71,10 @@ def main(args):
     #     num_classes=args.pointNumber)
     model = models.__dict__[args.netType](
         num_modules=args.nStacks, pointNumber=args.pointNumber)
-    model.load_state_dict(models.__dict__[args.netType + '_weights'](model))
+    # model.load_state_dict(models.__dict__[args.netType + '_weights'](model))
     model = torch.nn.DataParallel(model).cuda()
 
-    criterion = torch.nn.MSELoss(size_average=True).cuda()
-
+    criterion = torch.nn.MSELoss().cuda()
     optimizer = torch.optim.RMSprop(
         model.parameters(),
         lr=args.lr,
@@ -137,6 +136,19 @@ def main(args):
         shuffle=True,
         num_workers=args.workers,
         pin_memory=True)
+
+    # get train_loader of WFLW
+    new_args = copy.deepcopy(args)
+    new_args.data = 'data/WFLW'
+    new_args.train_batch = 32
+    Loader = get_loader(new_args.data)
+    train_loader2 = torch.utils.data.DataLoader(
+        Loader(new_args, 'train'),
+        batch_size=new_args.train_batch,
+        shuffle=True,
+        num_workers=new_args.workers,
+        pin_memory=True)
+    data_iter = iter(train_loader2)
     lr = args.lr
     for epoch in range(args.start_epoch, args.epochs):
         lr = adjust_learning_rate(optimizer, epoch, lr, args.schedule,
@@ -145,9 +157,16 @@ def main(args):
         print('=> Epoch: %d | LR %.8f | Map_Weight %.8f' % (epoch + 1, lr,
                                                             map_weight[27]))
 
-        train_loss, train_acc = train(train_loader, model, criterion,
-                                      optimizer, args.netType, args.debug,
-                                      args.flip)
+        train_loss, train_acc = train(
+            train_loader,
+            model,
+            criterion,
+            optimizer,
+            args.netType,
+            args.debug,
+            args.flip,
+            train_loader2=train_loader2,
+            data_iter2=data_iter)
         # do not save predictions in model file
         valid_loss, valid_acc, predictions, valid_auc = validate(
             val_loader, model, criterion, args.netType, args.debug, args.flip)
@@ -181,7 +200,9 @@ def train(loader,
           optimizer,
           netType,
           debug=False,
-          flip=False):
+          flip=False,
+          train_loader2=None,
+          data_iter2=None):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
@@ -197,41 +218,56 @@ def train(loader,
     bar = Bar('Training', max=len(loader))
     for i, (inputs, target) in enumerate(loader):
         data_time.update(time.time() - end)
-        batch_size = inputs.size(0)
 
-        input_var = inputs.cuda()
-        target_var = target.cuda(async=True)
+        def train_one_iter(inputs, target, ext=False):
+            input_var = inputs.cuda()
+            target_var = target.cuda(async=True)
 
-        if debug:
-            gt_batch_img = batch_with_heatmap(inputs, target)
-            # pred_batch_img = batch_with_heatmap(inputs, score_map)
-            if not gt_win or not pred_win:
-                plt.subplot(121)
-                gt_win = plt.imshow(gt_batch_img)
-                # plt.subplot(122)
-                # pred_win = plt.imshow(pred_batch_img)
-            else:
-                gt_win.set_data(gt_batch_img)
-                # pred_win.set_data(pred_batch_img)
-            plt.pause(.05)
-            plt.draw()
+            if debug:
+                gt_batch_img = batch_with_heatmap(inputs, target)
+                # pred_batch_img = batch_with_heatmap(inputs, score_map)
+                if not gt_win or not pred_win:
+                    plt.subplot(121)
+                    gt_win = plt.imshow(gt_batch_img)
+                    # plt.subplot(122)
+                    # pred_win = plt.imshow(pred_batch_img)
+                else:
+                    gt_win.set_data(gt_batch_img)
+                    # pred_win.set_data(pred_batch_img)
+                plt.pause(.05)
+                plt.draw()
 
-        output = model(input_var)
-        score_map = output[-1].data.cpu()
+            output = model(input_var, branch='ext' if ext else 'main')
+            score_map = output[-1].data.cpu()
 
-        # intermediate supervision
-        loss = 0
-        for o in output:
-            # loss += criterion(o, target_var)
-            loss += weighted_mse_loss(o, target_var, map_weight)
-        acc, _ = accuracy(score_map, target.cpu(), idx, thr=0.07)
+            # intermediate supervision
+            loss = 0
+            for o in output:
+                # loss += criterion(o, target_var)
+                if ext == False:
+                    loss += weighted_mse_loss(o, target_var, map_weight)
+                    # loss += criterion(o, target_var)
+                else:
+                    loss += criterion(o, target_var) * .1
+            acc, _ = accuracy(score_map, target.cpu(), idx, thr=0.07)
 
-        losses.update(loss.data[0], inputs.size(0))
-        acces.update(acc[0], inputs.size(0))
+            # no update for extra branch
+            if ext == False:
+                losses.update(loss.data[0], inputs.size(0))
+                acces.update(acc[0], inputs.size(0))
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        train_one_iter(inputs, target)
+        if data_iter2:
+            try:
+                inputs, target = next(data_iter2)
+            except StopIteration:
+                data_iter2 = iter(train_loader2)
+                inputs, target = next(data_iter2)
+            # train_one_iter(inputs, target, ext=True)
 
         batch_time.update(time.time() - end)
         end = time.time()

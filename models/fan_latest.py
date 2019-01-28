@@ -168,10 +168,15 @@ class HourGlass(nn.Module):
 
 
 class FAN(nn.Module):
-    def __init__(self, num_modules=1, pointNumber=68):
+    def __init__(self, num_modules=1, pointNumber=68, ext_point=None):
+        '''
+        pointNumber : main point number branch
+        ext_point : extra point number branch
+        '''
         super(FAN, self).__init__()
         self.num_modules = num_modules
         self.pointNumber = pointNumber
+        self.ext_point = ext_point
         # Base part
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3)
         self.bn1 = nn.BatchNorm2d(64)
@@ -191,6 +196,16 @@ class FAN(nn.Module):
                 'l' + str(hg_module),
                 nn.Conv2d(
                     256, self.pointNumber, kernel_size=1, stride=1, padding=0))
+            # add extra branch for different point number
+            if self.ext_point:
+                self.add_module(
+                    'l_ext' + str(hg_module),
+                    nn.Conv2d(
+                        256,
+                        self.ext_point,
+                        kernel_size=1,
+                        stride=1,
+                        padding=0))
 
             if hg_module < self.num_modules - 1:
                 self.add_module(
@@ -204,8 +219,22 @@ class FAN(nn.Module):
                         kernel_size=1,
                         stride=1,
                         padding=0))
+                # add extra branch for different point number
+                if self.ext_point:
+                    # self.add_module(
+                    #     'bl_ext' + str(hg_module),
+                    #     nn.Conv2d(
+                    #         256, 256, kernel_size=1, stride=1, padding=0))
+                    self.add_module(
+                        'al_ext' + str(hg_module),
+                        nn.Conv2d(
+                            self.ext_point,
+                            256,
+                            kernel_size=1,
+                            stride=1,
+                            padding=0))
 
-    def forward(self, x):
+    def forward(self, x, branch='main'):
         x = F.relu(self.bn1(self.conv1(x)), True)
         x = F.avg_pool2d(self.conv2(x), 2, stride=2)
         x = self.conv3(x)
@@ -225,13 +254,21 @@ class FAN(nn.Module):
                     self._modules['conv_last' + str(i)](ll)), True)
 
             # Predict heatmaps
-            tmp_out = self._modules['l' + str(i)](ll)
-            outputs.append(tmp_out)
+            if branch == 'main':
+                tmp_out = self._modules['l' + str(i)](ll)
+                outputs.append(tmp_out)
 
-            if i < self.num_modules - 1:
-                ll = self._modules['bl' + str(i)](ll)
-                tmp_out_ = self._modules['al' + str(i)](tmp_out)
-                previous = previous + ll + tmp_out_
+                if i < self.num_modules - 1:
+                    ll = self._modules['bl' + str(i)](ll)
+                    tmp_out_ = self._modules['al' + str(i)](tmp_out)
+                    previous = previous + ll + tmp_out_
+            else:
+                tmp_out = self._modules['l_ext' + str(i)](ll)
+                outputs.append(tmp_out)
+                if i < self.num_modules - 1:
+                    ll = self._modules['bl' + str(i)](ll)
+                    tmp_out_ = self._modules['al_ext' + str(i)](tmp_out)
+                    previous = previous + ll + tmp_out_
 
         return outputs
 

@@ -38,7 +38,12 @@ def argparser():
         default='',
         help='resume from lasteset saved checkpoints')
     P.add_argument(
-        '--lr', type=float, default=2.5e-3, help='initial learning rate')
+        '--lr', type=float, default=2.5e-4, help='initial learning rate')
+    P.add_argument(
+        '--ext_loss_weight',
+        type=float,
+        default=.5,
+        help='extra point loss weight')
     P.add_argument('--momentum', type=float, default=0.0, help='momentum')
     P.add_argument(
         '--weight-decay', type=float, default=0, help='weight decay')
@@ -66,13 +71,13 @@ def argparser():
         '--schedule',
         type=int,
         nargs="+",
-        default=[20, 35, 70],
+        default=[20, 35, 70, 90],
         help='adjust lr at this epoch')
     P.add_argument(
         '--weight_schedule',
         type=int,
         nargs="+",
-        default=[10, 30],
+        default=[30, 50],
         help='adjust map weight for mse loss')
     P.add_argument('--gamma', type=float, default=0.1, help='lr decay')
     P.add_argument(

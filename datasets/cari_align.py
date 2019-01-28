@@ -43,13 +43,14 @@ class CARI_ALIGN(data.Dataset):
                 lines.append(os.path.join(self.img_folder, d))
 
         split_point = int(len(lines) * 0.95)
+        # split_point = 16
         if is_train:
-            print('=> loaded train set, {} images were found'.format(
-                split_point))
+            print('=> loaded cari_align train set, {} images were found'.
+                  format(split_point))
             return lines[:split_point]
         else:
-            print('=> loaded validation set, {} images were found'.format(
-                len(lines) - split_point))
+            print('=> loaded cari_align validation set, {} images were found'.
+                  format(len(lines) - split_point))
             return lines[split_point:]
 
     def __len__(self):
@@ -92,7 +93,7 @@ class CARI_ALIGN(data.Dataset):
             # s = s * torch.randn(1).mul_(sf).add_(1).clamp(1 - sf, 1 + sf)[0]
             r = torch.randn(1).mul_(rf).clamp(
                 -2 * rf, 2 * rf)[0] if random.random() <= 0.6 else 0
-            if random.random() <= 0.5:
+            if random.random() <= .5:
                 img = torch.from_numpy(fliplr(img.numpy())).float()
                 pts = shufflelr(pts, width=img.size(2), dataset='cari_align')
                 c[0] = img.size(2) - c[0]

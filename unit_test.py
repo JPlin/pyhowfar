@@ -19,21 +19,26 @@ args = opts.argparser()
 
 
 def test_dataset():
-    dataset = CARI_ALIGN(args, 'val')
+    dataset = CARI_ALIGN(args, 'train')
     plt.figure()
     for i in range(dataset.__len__()):
-        input, target, meta = dataset.__getitem__(i)
+        input, target = dataset.__getitem__(i)
         input = color_denormalize(
             input, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
-        # input = input.numpy().transpose(1, 2, 0) * 255.
-        # input = input.astype(np.uint8)
-        pts = meta['pts']
-        show_joints(input, pts, show_N=False)
-        plt.show()
+        # input_img = input.numpy().transpose(1, 2, 0) * 255.
+        # input_img = input_img.astype(np.uint8)
+        # plt.subplot(121)
+        # plt.imshow(input_img)
+        # plt.subplot(122)
+        # plt.imshow(target[30])
+        # plt.show()
+        # pts = meta['pts']
+        # show_joints(input, pts, show_N=True)
+        # plt.show()
         preds = get_preds_fromhm(torch.unsqueeze(target, 0))
-        show_joints(input, preds[0] * 4.0, show_N=False)
+        show_joints(input, preds[0] * 4.0, show_N=True)
         plt.show()
-        print(pts - preds[0] * 4.0)
+        # print(pts - preds[0] * 4.0)
 
 
 def test_gaussian():
@@ -65,6 +70,6 @@ def test_dataset_WFLW():
 
 
 if __name__ == '__main__':
-    # test_dataset()
+    test_dataset()
     # test_gaussian()
-    test_dataset_WFLW()
+    # test_dataset_WFLW()

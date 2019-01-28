@@ -44,11 +44,11 @@ class WFLW(data.Dataset):
 
         split_point = int(len(lines) * 0.95)
         if is_train:
-            print('=> loaded train set, {} images were found'.format(
+            print('=> loaded wflwtrain set, {} images were found'.format(
                 split_point))
             return lines[:split_point]
         else:
-            print('=> loaded validation set, {} images were found'.format(
+            print('=> loaded wflw validation set, {} images were found'.format(
                 len(lines) - split_point))
             return lines[split_point:]
 
@@ -107,7 +107,7 @@ class WFLW(data.Dataset):
         inp = color_normalize(inp, self.mean, self.std)
 
         tpts = pts.clone()
-        out = torch.zeros(self.nParts, 98, 98)
+        out = torch.zeros(self.nParts, 64, 64)
         for i in range(self.nParts):
             if tpts[i, 0] > 0:
                 if r != 0:
